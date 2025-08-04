@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Capitán Cubillos y Cruz - Animaciones</title>
+
+    <!-- A-Frame core: Librería principal para crear mundos 3D en HTML -->
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+
+    <!-- Componentes extra para A-Frame (animaciones, mezcladores, etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+
+    <!-- Componente personalizado para mover un objeto horizontalmente -->
+    <script>
+      AFRAME.registerComponent('move-horizontal', {
+        schema: { speed: {type: 'number', default: 2} }, // velocidad del movimiento
+        init: function () { this.startTime = null; }, // cuando inicia la escena, guarda el tiempo inicial
+        tick: function (time, deltaTime) { // tick se ejecuta en cada frame
+          if (!this.startTime) this.startTime = time; // guarda el tiempo de inicio la primera vez
+          const elapsed = time - this.startTime; // tiempo transcurrido
+          if (elapsed < 13000) { // se mueve solo durante los primeros 13 segundos
+            const moveAmount = (this.data.speed * deltaTime) / 1000; // cuánto moverse cada frame
+            this.el.object3D.position.x += moveAmount; // mueve el objeto en el eje X
+          }
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <a-scene>
+      <a-assets>
+        <!-- Se cargan los modelos 3D para usarlos luego -->
+        <a-asset-item id="cubillos" src="https://raw.githubusercontent.com/GabrielCaroG/modelo3d/main/CapitanCubillos.glb"></a-asset-item>
+        <a-asset-item id="escenario" src="https://raw.githubusercontent.com/GabrielCaroG/modelo3d/main/Escenario.glb"></a-asset-item>
+        <a-asset-item id="cruz" src="https://raw.githubusercontent.com/GabrielCaroG/modelo3d/main/Cruz.glb"></a-asset-item>
+      </a-assets>
+
+      <!-- Escenario fijo -->
+      <a-entity gltf-model="#escenario" position="0 0 0" scale="2 2 2"></a-entity>
+
+      <!-- Capitán Cubillos se mueve horizontalmente -->
+      <a-entity id="cubillo-wrapper" position="0 0 0" move-horizontal="speed: 3">
+        <a-entity id="cubillo"
+                  gltf-model="#cubillos"
+                  scale="1.6 1.6 1.6"
+                  animation-mixer="clip: Walk; loop: repeat"
+                  rotation="0 0 0">
+        </a-entity>
+      </a-entity>
+
+      <!-- Cruz aparece en una posición inicial desplazada -->
+      <a-entity id="cruz-actor"
+                gltf-model="#cruz"
+                scale="1.6 1.6 1.6"
+                position="-5 0 -5"
+                rotation="0 -90 0">
+      </a-entity>
+    </a-scene>
+
+    <script>
+      // Se accede al Capitán Cubillos y su envoltorio para animarlo
+      const wrapper = document.querySelector('#cubillo-wrapper');
+      const cubillo = document.querySelector('#cubillo');
+
+      cubillo.addEventListener('model-loaded', () => {
+        // Comienza caminando en bucle
+        cubillo.setAttribute('animation-mixer', {
+          clip: 'Walk',
+          loop: 'repeat',
+          clampWhenFinished: false
+        });
+
+        // A los 13 segundos, se detiene y dispara
+        setTimeout(() => {
+          wrapper.removeAttribute('move-horizontal');
+          cubillo.setAttribute('animation-mixer', {
+            clip: 'Shoot',
+            loop: 'once',
+            clampWhenFinished: true
+          });
+        }, 13000);
+
+        // A los 17 segundos, pasa a estar en espera (idle)
+        setTimeout(() => {
+          cubillo.setAttribute('animation-mixer', {
+            clip: 'IDLE',
+            loop: 'repeat',
+            clampWhenFinished: false
+          });
+        }, 17000);
+      });
+
+      // Se accede a la entidad "cruz" y se configura su rotación inicial
+      const cruz = document.querySelector('#cruz-actor');
+      cruz.setAttribute('rotation', { x: 0, y: -90, z: 0 });
+
+      cruz.addEventListener('model-loaded', () => {
+        // Se espera 8 segundos antes de comenzar las acciones
+        setTimeout(() => {
+          // 1. Animación inicial "Cambio"
+          cruz.setAttribute('animation-mixer', {
+            clip: 'Cambio',
+            loop: 'once',
+            clampWhenFinished: true
+          });
+
+          // 2. Luego de 2.6 segundos, se cambia la posición, rota, corre y se mueve
+          setTimeout(() => {
+            const pos = cruz.getAttribute('position');
+
+            cruz.setAttribute('rotation', { x: 0, y: -270, z: 0 }); // gira a la izquierda
+            cruz.setAttribute('position', { x: pos.x - 1, y: pos.y, z: pos.z }); // se mueve ligeramente
+
+            cruz.setAttribute('animation-mixer', {
+              clip: 'run',
+              loop: 'repeat',
+              clampWhenFinished: false
+            });
+
+            // Movimiento en X durante 2.5 segundos
+            let elapsed = 0;
+            const interval = 16; // intervalo de tiempo (~60fps)
+            const speed = 6; // unidades por segundo
+            const moveStep = (speed * interval) / 1000; // paso por frame
+
+            const mover = setInterval(() => {
+              const current = cruz.getAttribute('position');
+              cruz.setAttribute('position', {
+                x: current.x + moveStep,
+                y: current.y,
+                z: current.z
+              });
+
+              elapsed += interval;
+              if (elapsed >= 2500) {
+                clearInterval(mover);
+
+                // 3. Finalmente, se reproduce la animación "muerte"
+                cruz.setAttribute('animation-mixer', {
+                  clip: 'muerte',
+                  loop: 'once',
+                  clampWhenFinished: true
+                });
+
+                cruz.setAttribute('rotation', { x: 0, y: -270, z: 0 });
+              }
+            }, interval);
+          }, 2633); // Espera a que termine "Cambio"
+        }, 8000); // Todo empieza al segundo 8
+      });
+    </script>
+  </body>
+</html>
